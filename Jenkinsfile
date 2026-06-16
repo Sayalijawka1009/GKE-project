@@ -1,39 +1,35 @@
 pipeline {
     agent any
 
-    environment {
-        PROJECT_ID = "rugged-alloy-482607-h2"
-        CLUSTER_NAME = "gke-cluster"
-        REGION = "us-central1"
-    }
-
     stages {
 
-        stage('Connect to GKE') {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t myapp:v1 .'
+            }
+        }
+
+        stage('Push Image') {
             steps {
                 sh '''
-                gcloud container clusters get-credentials $CLUSTER_NAME \
-                --region $REGION \
-                --project $PROJECT_ID
+                docker tag myapp:v1 us-central1-docker.pkg.dev/qwiklabs-gcp-01-3b47ca77e2ae/my-repo/myapp:v1
+                docker push us-central1-docker.pkg.dev/qwiklabs-gcp-01-3b47ca77e2ae/my-repo/myapp:v1
                 '''
             }
         }
 
-        stage('Check Pods') {
+        stage('Deploy to GKE') {
             steps {
-                sh 'kubectl get pods'
-            }
-        }
-
-        stage('Check Services') {
-            steps {
-                sh 'kubectl get svc'
-            }
-        }
-
-        stage('Check Deployments') {
-            steps {
-                sh 'kubectl get deployments'
+                sh '''
+                kubectl apply -f deployment.yaml
+                kubectl apply -f service.yaml
+                '''
             }
         }
     }
